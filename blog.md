@@ -27,9 +27,9 @@ The insight is not that retrieval beats fine-tuning in general. It is that for w
 
 ## The Dataset
 
-We used the Contract Understanding Atticus Dataset (CUAD), introduced by Hendrycks et al. at NeurIPS 2021. CUAD contains 510 real commercial contracts — distribution agreements, software licenses, employment contracts, M&A agreements — annotated by legal experts across 41 clause types. The annotations represent an estimated $2 million of legal expert time and cover clauses ranging from Anti-Assignment and Governing Law to Liquidated Damages and IP Ownership Assignment.
+We used the Contract Understanding Atticus Dataset (CUAD), introduced by Hendrycks et al. at NeurIPS 2021. CUAD contains 510 real commercial contracts distribution agreements, software licenses, employment contracts, M&A agreements  annotated by legal experts across 41 clause types. The annotations represent an estimated $2 million of legal expert time and cover clauses ranging from Anti-Assignment and Governing Law to Liquidated Damages and IP Ownership Assignment.
 
-Our evaluation used CUAD-SL, a reformulation of CUAD as a single-label classification problem introduced by O'Connell et al. (2025) in *Artificial Intelligence and Law*. CUAD-SL provides a cleaner benchmark for clause type prediction — given a clause extracted from a contract, predict which of the 41 clause types it belongs to. This is the task a contract review system must solve in practice.
+Our evaluation used CUAD-SL, a reformulation of CUAD as a single-label classification problem introduced by O'Connell et al. (2025) in *Artificial Intelligence and Law*. CUAD-SL provides a cleaner benchmark for clause type prediction given a clause extracted from a contract, predict which of the 41 clause types it belongs to. This is the task a contract review system must solve in practice.
 
 We focused on the 10 highest-risk clause types: Uncapped Liability, Cap On Liability, Liquidated Damages, Non-Compete, Anti-Assignment, Change Of Control, Termination For Convenience, IP Ownership Assignment, Irrevocable Or Perpetual License, and Covenant Not To Sue. Across 510 contracts, these yielded 1,538 labeled clause instances for evaluation.
 
