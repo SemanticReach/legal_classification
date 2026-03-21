@@ -6,9 +6,9 @@
 
 The received wisdom in legal AI is that better performance requires more training data, larger models, and more compute. Every serious player in the space is fine-tuning billion-parameter language models on proprietary contract corpora, building expensive data moats, and running GPU clusters. The implicit assumption is that you need to train to compete.
 
-We decided to test that assumption. What follows is an account of building a legal contract analysis system on HyperBinder — a hyperdimensional computing vector database — that achieves state-of-the-art classification accuracy on the CUAD-SL benchmark without training a single model parameter.
+We decided to test that assumption. What follows is an account of building a legal contract analysis system on HyperBinder a hyperdimensional computing vector database that achieves state-of-the-art classification accuracy on the CUAD-SL benchmark without training a single model parameter.
 
-> The insight is not that retrieval beats fine-tuning in general. It is that for well-structured retrieval problems, the right query architecture matters more than model size.
+The insight is not that retrieval beats fine-tuning in general. It is that for well-structured retrieval problems, the right query architecture matters more than model size.
 
 ---
 
