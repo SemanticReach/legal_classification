@@ -125,6 +125,37 @@ In a fine-tuned transformer, knowledge is encoded in weight matrices updated dur
 
 ---
 
+## Ablation: Does the Symbolic Filter Actually Help?
+
+A natural objection to this architecture is that it reduces to nearest-neighbor classification with Legal-BERT embeddings, something any vector database could do. We tested this directly by comparing three conditions against the same 1,538 clause instances.
+
+| Method | P@1 | Correct / 1,538 |
+|---|---|---|
+| **HyperBinder multi-slot (ours)** | **93.6%** | **1,440** |
+| Vanilla k-NN top-1 (no filter) | 86.2% | 1,326 |
+| k-NN majority vote top-5 (no filter) | 78.8% | 1,212 |
+
+The symbolic filter accounts for 7.4 percentage points over vanilla k-NN. The per-clause-type breakdown shows where the filter does its work:
+
+| Clause Type | Multi-slot | Vanilla k-NN | Delta |
+|---|---|---|---|
+| Irrevocable Or Perpetual License | 98.6% | 52.9% | +45.7 |
+| Uncapped Liability | 95.5% | 67.6% | +27.9 |
+| Liquidated Damages | 95.1% | 73.8% | +21.3 |
+| Non-Compete | 97.5% | 82.4% | +15.1 |
+| Covenant Not To Sue | 98.0% | 88.0% | +10.0 |
+| Change Of Control | 90.1% | 82.6% | +7.4 |
+| Ip Ownership Assignment | 97.6% | 91.1% | +6.5 |
+| Anti-Assignment | 97.9% | 97.3% | +0.6 |
+| Termination For Convenience | 97.3% | 98.4% | -1.1 |
+| Cap On Liability | 79.6% | 82.2% | -2.6 |
+
+The filter rescued 160 clauses that vanilla k-NN misclassified, while introducing 46 errors that k-NN would have gotten right. The net gain is 114 clauses. The rescued cases concentrate in clause types with semantically similar neighbors in the full index: Irrevocable Or Perpetual License (which bleeds into License Grant), Uncapped Liability (which bleeds into Cap On Liability), and Liquidated Damages. The hurt cases concentrate in Cap On Liability, reflecting the same labeling ambiguity identified in the failure analysis.
+
+Majority voting over the unfiltered pool performs substantially worse than top-1, demonstrating that naive scaling of k does not substitute for symbolic constraint. In a corpus where Anti-Assignment (374 instances) vastly outnumbers Irrevocable Or Perpetual License (70 instances), a top-5 vote over a mixed pool systematically favors the majority class. The symbolic filter solves this by making comparison happen within each clause type's subspace.
+
+---
+
 ## Generalization
 
 A natural concern with retrieval-based classification is whether the system memorizes its index rather than generalizing. We tested this directly by re-ingesting only 408 of 510 contracts (80%), then running the full evaluation across all 1,538 clause instances. The final 102 contracts were entirely unseen by the index at query time.
