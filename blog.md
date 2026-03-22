@@ -6,9 +6,13 @@
 
 The received wisdom in legal AI is that better performance requires more training data, larger models, and more compute. Every serious player in the space is fine-tuning billion-parameter language models on proprietary contract corpora, building expensive data moats, and running GPU clusters. The implicit assumption is that you need to train to compete.
 
+<<<<<<< HEAD
 We decided to test that assumption. What follows is an account of building a legal contract analysis system on HyperBinder, a hyperdimensional computing vector database, that achieves state-of-the-art classification accuracy on the CUAD-SL benchmark without training a single model parameter.
+=======
+We decided to test that assumption. What follows is an account of building a legal contract analysis system on HyperBinder a hyperdimensional computing vector database that achieves state-of-the-art classification accuracy on the CUAD-SL benchmark without training a single model parameter.
+>>>>>>> 425ce7fd905743da00dd9af0a624c0cb8acac8c5
 
-> The insight is not that retrieval beats fine-tuning in general. It is that for well-structured retrieval problems, the right query architecture matters more than model size.
+The insight is not that retrieval beats fine-tuning in general. It is that for well-structured retrieval problems, the right query architecture matters more than model size.
 
 ---
 
@@ -27,9 +31,15 @@ We decided to test that assumption. What follows is an account of building a leg
 
 ## The Dataset
 
+<<<<<<< HEAD
 We used the Contract Understanding Atticus Dataset (CUAD), introduced by Hendrycks et al. at NeurIPS 2021. CUAD contains 510 real commercial contracts, spanning distribution agreements, software licenses, employment contracts, and M&A agreements, annotated by legal experts across 41 clause types. The annotations represent an estimated $2 million of legal expert time and cover clauses ranging from Anti-Assignment and Governing Law to Liquidated Damages and IP Ownership Assignment.
 
 Our evaluation used CUAD-SL, a reformulation of CUAD as a single-label classification problem introduced by O'Connell et al. (2025) in *Artificial Intelligence and Law*. CUAD-SL provides a cleaner benchmark for clause type prediction: given a clause extracted from a contract, predict which of the 41 clause types it belongs to. This is the task a contract review system must solve in practice.
+=======
+We used the Contract Understanding Atticus Dataset (CUAD), introduced by Hendrycks et al. at NeurIPS 2021. CUAD contains 510 real commercial contracts distribution agreements, software licenses, employment contracts, M&A agreements  annotated by legal experts across 41 clause types. The annotations represent an estimated $2 million of legal expert time and cover clauses ranging from Anti-Assignment and Governing Law to Liquidated Damages and IP Ownership Assignment.
+
+Our evaluation used CUAD-SL, a reformulation of CUAD as a single-label classification problem introduced by O'Connell et al. (2025) in *Artificial Intelligence and Law*. CUAD-SL provides a cleaner benchmark for clause type prediction given a clause extracted from a contract, predict which of the 41 clause types it belongs to. This is the task a contract review system must solve in practice.
+>>>>>>> 425ce7fd905743da00dd9af0a624c0cb8acac8c5
 
 We focused on the 10 highest-risk clause types: Uncapped Liability, Cap On Liability, Liquidated Damages, Non-Compete, Anti-Assignment, Change Of Control, Termination For Convenience, IP Ownership Assignment, Irrevocable Or Perpetual License, and Covenant Not To Sue. Across 510 contracts, these yielded 1,538 labeled clause instances for evaluation.
 
@@ -179,5 +189,10 @@ For legal AI specifically, that inspectability matters. A lawyer who receives a 
 ## References
 
 1. Hendrycks, D. et al. "CUAD: An Expert-Annotated NLP Dataset for Legal Contract Review." *NeurIPS 2021*. arXiv:2103.06268
+<<<<<<< HEAD
 2. O'Connell, E. et al. "Cost-benefit analysis of deploying shallow, deep learning and generative models for legal text classification." *Artificial Intelligence and Law*, Springer, 2025. DOI: 10.1007/s10506-025-09484-4
 3. Chalkidis, I. et al. "Legal-BERT: The Muppets straight out of Law School." *EMNLP Findings 2020*.
+=======
+2. O'Connell, E. et al. "Cost–benefit analysis of deploying shallow, deep learning and generative models for legal text classification." *Artificial Intelligence and Law*, Springer, 2025. DOI: 10.1007/s10506-025-09484-4
+3. Chalkidis, I. et al. "Legal-BERT: The Muppets straight out of Law School." *EMNLP Findings 2020*.
+>>>>>>> 425ce7fd905743da00dd9af0a624c0cb8acac8c5
