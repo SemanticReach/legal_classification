@@ -1,0 +1,23 @@
+question_type,count,sys_accuracy,baseline_accuracy,vs_baseline
+Absence of Litigation Closing Condition,4,0.25,0.25,0.0
+Accuracy of Target R&W Closing Condition,7,0.2857,0.1429,0.1429
+Agreement provides for matching rights in connection with COR,4,0.0,0.5,-0.5
+Agreement provides for matching rights in connection with FTR,4,0.5,0.25,0.25
+Breach of Meeting Covenant,4,0.75,0.5,0.25
+Breach of No Shop,4,1.0,1.0,0.0
+Compliance with Covenant Closing Condition,4,1.0,1.0,0.0
+FTR Triggers,4,1.0,1.0,0.0
+Fiduciary exception to COR covenant,4,0.25,0.5,-0.25
+Fiduciary exception:  Board determination (no-shop),4,0.25,0.5,-0.25
+General Antitrust Efforts Standard,4,1.0,1.0,0.0
+Intervening Event Definition,4,0.25,0.25,0.0
+Knowledge Definition,4,0.25,0.0,0.25
+Limitations on FTR Exercise,4,1.0,0.0,1.0
+MAE Definition,13,0.0769,0.1538,-0.0769
+Negative interim operating covenant,4,0.5,0.75,-0.25
+No-Shop,4,0.5,0.25,0.25
+Ordinary course covenant,4,0.5,0.75,-0.25
+Specific Performance,4,1.0,1.0,0.0
+Superior Offer Definition,4,0.75,0.5,0.25
+Tail Period & Acquisition Proposal Details,4,0.25,0.25,0.0
+Type of Consideration,4,0.75,0.75,0.0
