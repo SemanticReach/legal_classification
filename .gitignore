@@ -13,6 +13,7 @@ CUAD_v1/
 
 # HyperBinder local data
 hyperbinder_data/
+legal_cache_db/
 
 # Python
 __pycache__/
