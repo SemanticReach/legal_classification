@@ -84,29 +84,16 @@ interface SampleClause {
 const SAMPLE_CLAUSES: Record<string, SampleClause> = {
   "Anti-Assignment ✓": {
     trueType: "Anti-Assignment",
-    vanillaWrong: null as unknown as string,  // both correct
+    vanillaWrong: null as unknown as string,
     contract: "Standard clause",
     text: `Neither party may assign this Agreement or any rights or obligations hereunder, by operation of law or otherwise, without the prior written consent of the other party, which consent shall not be unreasonably withheld or delayed.`,
   },
   "Termination ✓": {
     trueType: "Termination For Convenience",
-    vanillaWrong: null as unknown as string,  // both correct
+    vanillaWrong: null as unknown as string,
     contract: "Standard clause",
     text: `Either party may terminate this Agreement for any reason or no reason upon thirty (30) days prior written notice to the other party, without liability to the terminating party except for payment of amounts due and owing as of the termination date.`,
   },
-  "Non-Compete · XSPA": {
-    trueType: "Non-Compete",
-    vanillaWrong: "Exclusivity",
-    contract: "XSPA / Calm",
-    text: `Throughout the Term and for a period of six (6) months after the expiration or termination of this Agreement, neither XSPA nor any of its affiliates shall, directly or indirectly, sell, offer for sale, market or promote any digital meditation or digital sleep products (other than the Products), including online or in any Store in the Territory, without the express prior written consent of Calm. Throughout the Term and for a period of six (6) months after the expiration or termination of this Agreement, neither Calm nor any of its affiliates shall, directly or indirectly, sell, offer for sale, market or promote any digital meditation or digital sleep products in any retail location located in an airport other than in collaboration with XSPA, without the express prior written consent of XSPA.`,
-  },
-  "Non-Compete · MMT": {
-    trueType: "Non-Compete",
-    vanillaWrong: "Competitive Restriction Exception",
-    contract: "MMT / Pfizer",
-    text: `During the Term, MMT shall not Commercialize in any manner any Competing Product in the Field in any country in the Territory; provided, however, the Parties hereby acknowledge that the restrictions set forth in this Section 2.3 shall not apply to any Affiliates of MMT (including Pfizer).`,
-  },
-
   "Irrevocable · AT&T": {
     trueType: "Irrevocable Or Perpetual License",
     vanillaWrong: "License Grant",

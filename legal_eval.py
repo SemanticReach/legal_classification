@@ -48,7 +48,7 @@ load_dotenv()
 
 SERVER_URL = os.environ.get("HB_SERVER_URL", os.environ.get("SERVER_URL", ""))
 API_KEY    = os.environ.get("HB_API_KEY",    os.environ.get("API_KEY",    ""))
-DB_NAME    = os.environ.get("HB_DB_NAME",    "fraud_db")
+DB_NAME    = os.environ.get("HB_DB_NAME",    "fraud_db_v2")  # Updated to new DB
 NAMESPACE  = "cuad_clauses"
 
 RISK_CLAUSE_TYPES = [
@@ -83,28 +83,55 @@ PRESENCE_THRESHOLDS = {
 PRESENCE_THRESHOLD = 0.65
 
 
-# ── Search ────────────────────────────────────────────────────────────────────
+# ── Search with Backoff ──────────────────────────────────────────────────────
 
-def search_slots(slot_queries: dict, top_k: int = 10, retries: int = 3) -> list:
+def search_slots(slot_queries: dict, top_k: int = 10, retries: int = 5) -> list:
+    """
+    Search slots with exponential backoff for rate limiting (429).
+    Max retries = 5, backoff: 2s, 4s, 8s, 16s, 32s
+    """
     for attempt in range(retries):
         try:
             resp = requests.post(
                 f"{SERVER_URL}/compose/search_slots/{DB_NAME}/{NAMESPACE}",
                 headers={"X-API-Key": API_KEY},
                 json={"slot_queries": slot_queries, "top_k": top_k},
-                timeout=30,
+                timeout=60,
             )
+            
+            # Rate limited - back off and retry
             if resp.status_code == 429:
-                wait = 2 ** attempt  # exponential backoff: 1s, 2s, 4s
+                wait = (2 ** attempt) * 2  # 2s, 4s, 8s, 16s, 32s
+                print(f"  ⏱️  Rate limited, waiting {wait}s... (attempt {attempt+1}/{retries})")
                 time.sleep(wait)
                 continue
+            
             resp.raise_for_status()
             return resp.json().get("results", [])
+            
+        except requests.exceptions.Timeout:
+            if attempt < retries - 1:
+                wait = 5
+                print(f"  ⏱️  Timeout, waiting {wait}s... (attempt {attempt+1}/{retries})")
+                time.sleep(wait)
+            else:
+                print(f"  ✗ Query timed out after {retries} attempts")
+                
+        except requests.exceptions.ConnectionError as e:
+            if attempt < retries - 1:
+                wait = 5
+                print(f"  🔌 Connection error, waiting {wait}s... (attempt {attempt+1}/{retries})")
+                time.sleep(wait)
+            else:
+                print(f"  ✗ Connection error: {e}")
+                
         except Exception as e:
             if attempt < retries - 1:
-                time.sleep(2 ** attempt)
+                wait = 2 ** attempt
+                time.sleep(wait)
             else:
                 print(f"  ✗ Query failed: {e}")
+    
     return []
 
 
@@ -145,7 +172,6 @@ def eval_classify(clause_text: str, true_clause_type: str, top_k: int = 3) -> di
     """
     Given raw clause text (no label), predict which clause type it is.
     No leakage: system sees text but NOT the clause type label.
-
     Queries all clause types in parallel using ThreadPoolExecutor —
     10 concurrent requests instead of 10 sequential ones (~10x faster).
     Uses exact symbolic clause_type filter + semantic object scoring.
@@ -161,9 +187,9 @@ def eval_classify(clause_text: str, true_clause_type: str, top_k: int = 3) -> di
         return clause_type, score
 
     all_scores = {}
-    with ThreadPoolExecutor(max_workers=3) as executor:
+    with ThreadPoolExecutor(max_workers=10) as executor:
         futures = {executor.submit(query_one, ct): ct for ct in RISK_CLAUSE_TYPES}
-        for future in futures:
+        for future in as_completed(futures):
             clause_type, score = future.result()
             all_scores[clause_type] = score
 
@@ -497,7 +523,6 @@ def main():
                         help=f"Presence threshold (default: {PRESENCE_THRESHOLD})")
     args = parser.parse_args()
 
-    
     PRESENCE_THRESHOLD = args.threshold
 
     if args.mode == "classify":
