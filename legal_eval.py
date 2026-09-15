@@ -28,6 +28,9 @@ Usage:
     # Quick test on 20 contracts
     python legal_eval.py --mode classify --limit 20
     python legal_eval.py --mode presence --limit 20
+
+    # Tune request concurrency / pacing if you're still seeing 429s
+    python legal_eval.py --mode classify --max-concurrent 2 --min-interval 0.3
 """
 
 from __future__ import annotations
@@ -35,6 +38,7 @@ from __future__ import annotations
 import argparse
 import ast
 import os
+import threading
 import time
 from pathlib import Path
 
@@ -82,56 +86,92 @@ PRESENCE_THRESHOLDS = {
 # Global fallback threshold used when --threshold flag is passed
 PRESENCE_THRESHOLD = 0.65
 
+# ── Rate limiting (global, shared across all threads) ───────────────────────
+# The server was getting hammered by bursts of up to 10 concurrent requests
+# per clause (one ThreadPoolExecutor per clause, 10 clause types each), which
+# is why the eval log was flooded with repeated "Rate limited" messages.
+# A single global semaphore + minimum spacing between request starts keeps
+# total concurrency and request rate bounded no matter how many thread pools
+# are running at once.
+MAX_CONCURRENT_REQUESTS = 3     # max in-flight requests across the whole run
+MIN_REQUEST_INTERVAL    = 0.15  # seconds between request starts, globally
+
+_rate_semaphore   = threading.Semaphore(MAX_CONCURRENT_REQUESTS)
+_pacing_lock       = threading.Lock()
+_last_request_time = [0.0]
+
+# Only start printing "Rate limited" messages after this many retries on a
+# single call, so a burst of parallel calls doesn't flood stdout with
+# duplicate lines for what is really one underlying condition.
+RATE_LIMIT_LOG_AFTER_ATTEMPT = 2
+
+
+def _pace_request():
+    """Enforce a minimum spacing between request starts, globally."""
+    with _pacing_lock:
+        now = time.time()
+        wait = _last_request_time[0] + MIN_REQUEST_INTERVAL - now
+        if wait > 0:
+            time.sleep(wait)
+        _last_request_time[0] = time.time()
+
 
 # ── Search with Backoff ──────────────────────────────────────────────────────
 
 def search_slots(slot_queries: dict, top_k: int = 10, retries: int = 5) -> list:
     """
     Search slots with exponential backoff for rate limiting (429).
-    Max retries = 5, backoff: 2s, 4s, 8s, 16s, 32s
+    Max retries = 5, backoff: 2s, 4s, 8s, 16s, 32s.
+
+    Concurrency and request pacing are bounded globally (see
+    MAX_CONCURRENT_REQUESTS / MIN_REQUEST_INTERVAL above), so this function
+    no longer relies solely on retries to survive rate limits — it avoids
+    creating the burst in the first place.
     """
     for attempt in range(retries):
-        try:
-            resp = requests.post(
-                f"{SERVER_URL}/compose/search_slots/{DB_NAME}/{NAMESPACE}",
-                headers={"X-API-Key": API_KEY},
-                json={"slot_queries": slot_queries, "top_k": top_k},
-                timeout=60,
-            )
-            
-            # Rate limited - back off and retry
-            if resp.status_code == 429:
-                wait = (2 ** attempt) * 2  # 2s, 4s, 8s, 16s, 32s
-                print(f"  ⏱️  Rate limited, waiting {wait}s... (attempt {attempt+1}/{retries})")
-                time.sleep(wait)
-                continue
-            
-            resp.raise_for_status()
-            return resp.json().get("results", [])
-            
-        except requests.exceptions.Timeout:
-            if attempt < retries - 1:
-                wait = 5
-                print(f"  ⏱️  Timeout, waiting {wait}s... (attempt {attempt+1}/{retries})")
-                time.sleep(wait)
-            else:
-                print(f"  ✗ Query timed out after {retries} attempts")
-                
-        except requests.exceptions.ConnectionError as e:
-            if attempt < retries - 1:
-                wait = 5
-                print(f"  🔌 Connection error, waiting {wait}s... (attempt {attempt+1}/{retries})")
-                time.sleep(wait)
-            else:
-                print(f"  ✗ Connection error: {e}")
-                
-        except Exception as e:
-            if attempt < retries - 1:
-                wait = 2 ** attempt
-                time.sleep(wait)
-            else:
-                print(f"  ✗ Query failed: {e}")
-    
+        with _rate_semaphore:
+            _pace_request()
+            try:
+                resp = requests.post(
+                    f"{SERVER_URL}/compose/search_slots/{DB_NAME}/{NAMESPACE}",
+                    headers={"X-API-Key": API_KEY},
+                    json={"slot_queries": slot_queries, "top_k": top_k},
+                    timeout=60,
+                )
+
+                # Rate limited - back off and retry
+                if resp.status_code == 429:
+                    wait = (2 ** attempt) * 2  # 2s, 4s, 8s, 16s, 32s
+                    if attempt >= RATE_LIMIT_LOG_AFTER_ATTEMPT:
+                        print(f"  ⏱️  Rate limited, waiting {wait}s... (attempt {attempt+1}/{retries})")
+                    time.sleep(wait)
+                    continue
+
+                resp.raise_for_status()
+                return resp.json().get("results", [])
+
+            except requests.exceptions.Timeout:
+                if attempt < retries - 1:
+                    wait = 5
+                    print(f"  ⏱️  Timeout, waiting {wait}s... (attempt {attempt+1}/{retries})")
+                    time.sleep(wait)
+                else:
+                    print(f"  ✗ Query timed out after {retries} attempts")
+
+            except requests.exceptions.ConnectionError as e:
+                if attempt < retries - 1:
+                    wait = 5
+                    print(f"  🔌 Connection error, waiting {wait}s... (attempt {attempt+1}/{retries})")
+                    time.sleep(wait)
+                else:
+                    print(f"  ✗ Connection error: {e}")
+
+            except Exception as e:
+                if attempt < retries - 1:
+                    time.sleep(2 ** attempt)
+                else:
+                    print(f"  ✗ Query failed: {e}")
+
     return []
 
 
@@ -172,8 +212,9 @@ def eval_classify(clause_text: str, true_clause_type: str, top_k: int = 3) -> di
     """
     Given raw clause text (no label), predict which clause type it is.
     No leakage: system sees text but NOT the clause type label.
-    Queries all clause types in parallel using ThreadPoolExecutor —
-    10 concurrent requests instead of 10 sequential ones (~10x faster).
+    Queries all clause types using a small thread pool — real concurrency
+    is capped globally by the rate limiter in search_slots, so this pool
+    just needs enough workers to keep requests flowing, not to burst them.
     Uses exact symbolic clause_type filter + semantic object scoring.
     """
     from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -187,7 +228,7 @@ def eval_classify(clause_text: str, true_clause_type: str, top_k: int = 3) -> di
         return clause_type, score
 
     all_scores = {}
-    with ThreadPoolExecutor(max_workers=10) as executor:
+    with ThreadPoolExecutor(max_workers=MAX_CONCURRENT_REQUESTS) as executor:
         futures = {executor.submit(query_one, ct): ct for ct in RISK_CLAUSE_TYPES}
         for future in as_completed(futures):
             clause_type, score = future.result()
@@ -507,7 +548,9 @@ def run_presence_eval(csv_path: str, limit: int, out_path: str, summary_path: st
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
 def main():
-    global PRESENCE_THRESHOLD
+    global PRESENCE_THRESHOLD, MAX_CONCURRENT_REQUESTS, MIN_REQUEST_INTERVAL
+    global _rate_semaphore
+
     parser = argparse.ArgumentParser(
         description="Evaluate CUAD legal system — no ground truth leakage"
     )
@@ -521,9 +564,21 @@ def main():
     parser.add_argument("--summary",   default="legal_eval_summary.csv")
     parser.add_argument("--threshold", type=float, default=PRESENCE_THRESHOLD,
                         help=f"Presence threshold (default: {PRESENCE_THRESHOLD})")
+    parser.add_argument("--max-concurrent", type=int, default=MAX_CONCURRENT_REQUESTS,
+                        help=f"Max in-flight requests across the whole run "
+                             f"(default: {MAX_CONCURRENT_REQUESTS}). Lower this "
+                             f"if you're still seeing 429s.")
+    parser.add_argument("--min-interval", type=float, default=MIN_REQUEST_INTERVAL,
+                        help=f"Minimum seconds between request starts, globally "
+                             f"(default: {MIN_REQUEST_INTERVAL}).")
     args = parser.parse_args()
 
     PRESENCE_THRESHOLD = args.threshold
+
+    if args.max_concurrent != MAX_CONCURRENT_REQUESTS:
+        MAX_CONCURRENT_REQUESTS = args.max_concurrent
+        _rate_semaphore = threading.Semaphore(MAX_CONCURRENT_REQUESTS)
+    MIN_REQUEST_INTERVAL = args.min_interval
 
     if args.mode == "classify":
         run_classify_eval(args.csv, args.limit, args.out, args.summary)
